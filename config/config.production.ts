@@ -3,11 +3,17 @@ dotenv.config();
 
 export default () => ({
   database: {
-    dialect: 'mysql',
-    host: 'localhost',
-    port: process.env.DB_PORT || 5432,
-    username: process.env.DB_USER,
-    password: process.env.DB_PASS,
+    type: process.env.DB_TYPE,
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
     database: process.env.DB_NAME_PRODUCTION,
+    useNewUrlParser: true,
+    synchronize: true,
+    entities: [process.env.ENTITIES_PATH],
+  },
+  environment: {
+    port: process.env.PORT,
+    nodeEnv: process.env.NODE_ENV,
+    secretKey: process.env.SECRET_KEY,
   },
 });
