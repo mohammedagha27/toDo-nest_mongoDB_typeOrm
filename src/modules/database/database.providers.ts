@@ -1,19 +1,17 @@
 import { ConfigService } from '@nestjs/config';
-import { Sequelize } from 'sequelize-typescript';
-import { Task } from 'src/modules/tasks/task.model';
-import { User } from 'src/modules/users/user.model';
 import * as dotenv from 'dotenv';
-import { DATABASE, SEQUELIZE } from 'src/common/constants';
+import { DATABASE, DATA_SOURCE } from 'src/common/constants';
+import { DataSource } from 'typeorm';
 dotenv.config();
 export const databaseProviders = [
   {
-    provide: SEQUELIZE,
+    provide: DATA_SOURCE,
     useFactory: async (configService: ConfigService) => {
-      const sequelize = new Sequelize({
+      const dbSource = new DataSource({
         ...configService.get(DATABASE),
       });
-      sequelize.addModels([Task, User]);
-      return sequelize;
+
+      return dbSource.initialize();
     },
     inject: [ConfigService],
   },

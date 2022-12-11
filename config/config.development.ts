@@ -3,12 +3,13 @@ dotenv.config();
 
 export default () => ({
   database: {
+    type: 'mongodb',
     host: 'localhost',
-    dialect: 'mysql',
-    port: process.env.DB_PORT || 3306,
-    username: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    database: process.env.DB_NAME_DEV,
+    port: 27017,
+    database: 'todo5',
+    useNewUrlParser: true,
+    synchronize: true,
+    entities: ['dist/**/*.entity{ .ts,.js}'],
   },
   environment: {
     port: process.env.PORT,

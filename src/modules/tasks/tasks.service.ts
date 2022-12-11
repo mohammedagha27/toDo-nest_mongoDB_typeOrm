@@ -5,87 +5,88 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Transaction } from 'sequelize';
 import { TASK_REPOSITORY } from 'src/common/constants';
+import { Repository } from 'typeorm';
 import { TasksDTO } from './dto/create-task.dto';
 import { PageInfoQueryDTO } from './dto/pageInfo.dto';
-import { Task } from './task.model';
-
+import { Task } from './task.entity';
+import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class TasksService {
-  constructor(@Inject(TASK_REPOSITORY) private tasksRepository: typeof Task) {}
+  constructor(
+    @Inject(TASK_REPOSITORY) private tasksRepository: Repository<Task>,
+  ) {}
 
-  async createTask(
-    TasksDTO: TasksDTO,
-    userId: number,
-    transaction: Transaction,
-  ): Promise<Task> {
+  async createTask(TasksDTO: TasksDTO, user_id: string): Promise<any> {
     const { title } = TasksDTO;
-    return await this.tasksRepository.create<Task>(
-      { title, userId: userId },
-      { transaction },
-    );
+    const task = {
+      task_id: uuidv4(),
+      status: 'todo',
+      title,
+      user_id,
+    };
+    return await (
+      await this.tasksRepository.insert(task)
+    ).raw.ops[0];
   }
 
   async findAll(
-    userId: number,
+    user_id: string,
     pageInfoQueryDTO: PageInfoQueryDTO,
   ): Promise<any> {
     const { offset, limit } = pageInfoQueryDTO;
-    console.log(limit);
-    const data = await this.tasksRepository.findAll({
-      where: { userId },
-      offset,
-      limit,
-    });
 
+    const data = await this.tasksRepository.find({
+      where: { user_id },
+      take: limit,
+      skip: offset,
+    });
     return data;
   }
 
-  async deleteTask(taskId: number, userId: number, transaction): Promise<void> {
-    const task = await this.findTaskByID(taskId);
-    await this.checkTaskOwner(task, userId);
-    await task.destroy({ transaction });
+  async deleteTask(task_id: string, user_id: string): Promise<void> {
+    const task = await this.findTaskByID(task_id);
+    await this.checkTaskOwner(task, user_id);
+    await this.tasksRepository.delete({ task_id });
     return;
   }
 
-  async updateTaskTitle(
-    taskId: number,
-    userId: number,
-    title: string,
-    transaction: Transaction,
-  ) {
-    const task = await this.findTaskByID(taskId);
-    await this.checkTaskOwner(task, userId);
+  async updateTaskTitle(task_id: string, user_id: string, title: string) {
+    const task = await this.findTaskByID(task_id);
+    await this.checkTaskOwner(task, user_id);
     if (!title) throw new BadRequestException('title must not be empty');
-    task.update({ title }, { transaction });
-    return task;
+    const updatedTask = await this.tasksRepository.update(
+      { task_id },
+      { title },
+    );
+    return updatedTask;
   }
 
-  async findSingleTask(id: number, userId: number) {
+  async findSingleTask(id: string, userId: string) {
     const task = await this.findTaskByID(id);
     await this.checkTaskOwner(task, userId);
     return task;
   }
-  async markAsDone(taskId: number, userId: number, transaction: Transaction) {
-    const task = await this.findTaskByID(taskId);
-    await this.checkTaskOwner(task, userId);
-    task.update({ status: 'done' }, { where: { id: taskId }, transaction });
-    return task;
+  async markAsDone(task_id: string, user_id: string) {
+    const task = await this.findTaskByID(task_id);
+    await this.checkTaskOwner(task, user_id);
+    const updatedTask = await this.tasksRepository.update(
+      { task_id },
+      { status: 'done' },
+    );
+    return updatedTask;
   }
 
-  async findTaskByID(id: number) {
-    const task = await this.tasksRepository.findByPk(id);
+  async findTaskByID(id: string) {
+    const task = await this.tasksRepository.findOne({
+      where: { task_id: id },
+    });
     if (!task) throw new NotFoundException('task not found');
     return task;
   }
 
-  async checkTaskOwner(task: Task, userId: number) {
-    if (task.userId !== userId) throw new ForbiddenException();
+  async checkTaskOwner(task: Task, userId: string) {
+    if (task.user_id !== userId) throw new ForbiddenException();
     return task;
-  }
-
-  async findAllWhere(where: any) {
-    return await this.tasksRepository.findAll(where);
   }
 }

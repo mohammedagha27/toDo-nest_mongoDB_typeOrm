@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -15,8 +14,6 @@ import { TasksService } from './tasks.service';
 import { TransactionParam, User } from 'src/common/decorators';
 import { Auth } from 'src/common/decorators';
 import { ADMIN_ROLE } from 'src/common/constants';
-import { TransactionInterceptor } from 'src/common/interceptors';
-import { Transaction } from 'sequelize';
 import { PageInfoQueryDTO } from './dto/pageInfo.dto';
 import { PageInfoInterceptor } from 'src/common/interceptors/pageInfo.interceptor';
 
@@ -28,68 +25,46 @@ export class TasksController {
   @UseInterceptors(PageInfoInterceptor)
   @Get()
   async getAllTasks(
-    @User('id') userId: number,
+    @User('user_id') userId: string,
     @Query() pageInfoQueryDTO?: PageInfoQueryDTO,
   ) {
     return this.taskService.findAll(userId, pageInfoQueryDTO);
   }
 
   @Auth(ADMIN_ROLE)
-  @Get(':taskId')
+  @Get(':id')
   async getSingleTask(
-    @Param('taskId', ParseIntPipe) taskId: number,
-    @User('id') userId: number,
+    @Param('id') taskId: string,
+    @User('user_id') userId: string,
   ) {
     return this.taskService.findSingleTask(taskId, userId);
   }
 
-  @UseInterceptors(TransactionInterceptor)
   @Auth(ADMIN_ROLE)
   @Post()
-  async addTask(
-    @TransactionParam() transaction: Transaction,
-    @Body() TasksDTO: TasksDTO,
-    @User('id') userId: number,
-  ) {
-    return this.taskService.createTask(TasksDTO, userId, transaction);
+  async addTask(@Body() TasksDTO: TasksDTO, @User('user_id') userId: string) {
+    return this.taskService.createTask(TasksDTO, userId);
   }
 
-  @UseInterceptors(TransactionInterceptor)
   @Auth(ADMIN_ROLE)
   @Delete(':id')
-  async deleteTask(
-    @TransactionParam() transaction: Transaction,
-    @Param('id', ParseIntPipe) id: number,
-    @User('id') userId: number,
-  ) {
-    return await this.taskService.deleteTask(id, userId, transaction);
+  async deleteTask(@Param('id') id: string, @User('user_id') userId: string) {
+    return await this.taskService.deleteTask(id, userId);
   }
 
-  @UseInterceptors(TransactionInterceptor)
   @Auth(ADMIN_ROLE)
   @Patch(':id')
   async updateTask(
-    @TransactionParam() transaction: Transaction,
-    @Param('id', ParseIntPipe) id: number,
-    @User('id') userId: number,
+    @Param('id') id: string,
+    @User('user_id') userId: string,
     @Body('title') title: string,
   ) {
-    return await this.taskService.updateTaskTitle(
-      id,
-      userId,
-      title,
-      transaction,
-    );
+    return await this.taskService.updateTaskTitle(id, userId, title);
   }
 
-  @UseInterceptors(TransactionInterceptor)
   @Auth(ADMIN_ROLE)
   @Patch('/mark-done/:id')
-  async markAsDone(
-    @TransactionParam() transaction: Transaction,
-    @Param('id', ParseIntPipe) id: number,
-    @User('id') userId: number,
-  ) {
-    return await this.taskService.markAsDone(id, userId, transaction);
+  async markAsDone(@Param('id') id: string, @User('user_id') user_id: string) {
+    return await this.taskService.markAsDone(id, user_id);
   }
 }

@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcrypt';
 
-const hashPassword = (password: string) => {
+const hashPassword = (password: string): string => {
   return bcrypt.hash(password, 10);
 };
 const checkPassword = (password: string, hash: string) => {

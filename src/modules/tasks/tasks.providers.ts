@@ -1,9 +1,11 @@
-import { TASK_REPOSITORY } from 'src/common/constants';
-import { Task } from './task.model';
+import { DATA_SOURCE, TASK_REPOSITORY } from 'src/common/constants';
+import { DataSource } from 'typeorm';
+import { Task } from './task.entity';
 
 export const tasksProviders = [
   {
     provide: TASK_REPOSITORY,
-    useValue: Task,
+    useFactory: (dataSource: DataSource) => dataSource.getRepository(Task),
+    inject: [DATA_SOURCE],
   },
 ];

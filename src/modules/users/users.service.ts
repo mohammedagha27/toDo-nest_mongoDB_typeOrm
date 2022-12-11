@@ -4,46 +4,40 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { User } from './user.model';
+import User from './user.entity';
 import { JwtService } from '@nestjs/jwt';
 import { UserDto } from './dto/user.dto';
-import {
-  ADMIN_ROLE,
-  BAD_LOGIN_MSG,
-  USER_REPOSITORY,
-} from 'src/common/constants';
+import { BAD_LOGIN_MSG, USER_REPOSITORY } from 'src/common/constants';
 import { checkPassword, hashPassword } from 'src/common/utils';
-import { Transaction } from 'sequelize';
+import { Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @Inject(USER_REPOSITORY) private readonly userRepository: typeof User,
+    @Inject(USER_REPOSITORY) private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
   ) {}
 
-  async create(UserDto: UserDto, transaction: Transaction): Promise<any> {
-    const res = await this.findUserByUserName(UserDto.username, transaction);
+  async create(userDto: UserDto): Promise<any> {
+    const res = await this.findUserByUserName(userDto.username);
     if (res)
       throw new ConflictException(
-        `User with username ${UserDto.username} already exists`,
+        `User with username ${userDto.username} already exists`,
       );
 
-    const hashedPassword = await hashPassword(UserDto.password);
+    const hashedPassword = await hashPassword(userDto.password);
     const user = {
-      username: UserDto.username,
+      username: userDto.username,
       password: hashedPassword,
-      role: ADMIN_ROLE,
+      role: 'admin',
+      user_id: uuidv4(),
     };
-
-    const createdUser = await this.userRepository.create<User>(user, {
-      transaction,
-    });
-
-    const { password, role, ...resData } = createdUser.dataValues;
-
+    const createdUser = await this.userRepository.insert(user);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, role, _id, ...resData } = createdUser.raw.ops[0];
     const token = this.jwtService.sign({
-      resData,
+      ...resData,
       role,
     });
     return {
@@ -52,16 +46,13 @@ export class UsersService {
     };
   }
 
-  async login(
-    username: string,
-    enteredPassword: string,
-    transaction: Transaction,
-  ): Promise<any> {
-    const user = await this.findUserByUserName(username, transaction);
+  async login(username: string, enteredPassword: string): Promise<any> {
+    const user = await this.findUserByUserName(username);
 
     if (!user) throw new BadRequestException(BAD_LOGIN_MSG);
 
-    const { password, role, ...resData } = user.dataValues;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, role, _id, ...resData } = user;
     const checkPass = await checkPassword(enteredPassword, password);
 
     if (!checkPass) throw new BadRequestException(BAD_LOGIN_MSG);
@@ -74,13 +65,11 @@ export class UsersService {
     return { token, ...resData };
   }
 
-  async findUserByUserName(
-    username: string,
-    transaction?: Transaction,
-  ): Promise<User> {
-    return await this.userRepository.findOne({
-      where: { username },
-      transaction,
-    });
+  async findUserById(id: string): Promise<User> {
+    return await this.userRepository.findOne({ where: { user_id: id } });
+  }
+
+  async findUserByUserName(username: string): Promise<User> {
+    return await this.userRepository.findOne({ where: { username } });
   }
 }
